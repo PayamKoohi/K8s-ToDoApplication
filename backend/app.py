@@ -18,27 +18,34 @@ class Task(db.Model):
 
 with app.app_context():
     db.create_all()
-
+    
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
-    page = int(request.args.get("page", 1))
-    search = request.args.get("search", "").lower()
-    per_page = 10
+    try:
+        page = int(request.args.get("page", 1))
+        search = request.args.get("search", "").lower()
+        per_page = 10
 
-    tasks_query = Task.query
-    if search:
-        tasks_query = tasks_query.filter(Task.title.ilike(f"%{search}%"))
+        tasks_query = Task.query
+        if search:
+            tasks_query = tasks_query.filter(Task.title.ilike(f"%{search}%"))
 
-    tasks_paginated = tasks_query.paginate(page, per_page, False)
-    tasks = [
-        {"id": t.id, "title": t.title, "completed": t.completed}
-        for t in tasks_paginated.items
-    ]
+        # Corrected paginate usage
+        tasks_paginated = tasks_query.paginate(page=page, per_page=per_page, error_out=False)
 
-    return jsonify({
-        "tasks": tasks,
-        "hasMore": tasks_paginated.has_next
-    }), 200
+        tasks = [
+            {"id": t.id, "title": t.title, "completed": t.completed}
+            for t in tasks_paginated.items
+        ]
+
+        return jsonify({
+            "tasks": tasks,
+            "hasMore": tasks_paginated.has_next
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error in /api/tasks: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/api/tasks', methods=['POST'])
 def create_task():
